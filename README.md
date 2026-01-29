@@ -20,6 +20,13 @@ Describe your analysis goal in plain English and get automated data profiling, c
 - **ML/Data**: Pandas, NumPy, Matplotlib, scikit-learn
 - **LLM**: Groq API (Llama 3.3 70B) with rule-based fallbacks
 
+## Demo
+
+🎥 **Project Demo (Vimeo)**  
+Watch a full walkthrough of DataNarrate, including intent-based analysis, auto visualizations, and ML training:  
+[https://vimeo.com/1158871881](https://vimeo.com/1158871881?fl=ip&fe=ec)
+
+
 ## Architecture
 
 ```
