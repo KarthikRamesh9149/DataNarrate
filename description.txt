@@ -1,0 +1,10 @@
+DataNarrate - Intent-Aware Data Science Copilot
+
+Describe your analysis goal in plain English and get automated data profiling, cleaning, visualizations, and ML model training.
+
+- Natural language intent understanding
+- Smart data cleaning with before/after comparison
+- 7 auto-generated visualizations with AI explanations
+- Classification & regression model training
+- Target column inference with confidence scores
+- Export cleaned data (CSV) and charts (ZIP)

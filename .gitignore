@@ -1,0 +1,23 @@
+# Secrets
+.env
+
+# Claude Code local settings
+.claude/
+
+# Outputs
+outputs/
+
+# Common junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node (if applicable)
+node_modules/
