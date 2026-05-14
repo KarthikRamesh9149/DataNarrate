@@ -4,31 +4,31 @@
 
 ## System Overview
 
-DataNarrate is a full-stack data science application with a React frontend and Python/FastAPI backend. It integrates LLM capabilities (via Groq API) for intelligent analysis while maintaining rule-based fallbacks for reliability.
+DataNarrate is now a Streamlit-first data science application. The Streamlit app imports and reuses the existing Python analytics engine, while the FastAPI endpoints remain available for API integrations. It integrates LLM capabilities (via Groq API) for intelligent analysis while maintaining rule-based fallbacks for reliability.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     ContextUI (Electron App)                     │
+│                         Streamlit App                           │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              DataNarrateWindow.tsx (React)                 │  │
-│  │  - State management via React hooks                        │  │
-│  │  - Fetch API for backend communication                     │  │
-│  │  - Dynamic component (no imports, globals provided)        │  │
+│  │              streamlit_app.py (Streamlit)                 │  │
+│  │  - State management via Streamlit session_state           │  │
+│  │  - Direct reuse of analytics engine functions             │  │
+│  │  - Quality, cleaning, visuals, modeling, summary tabs     │  │
+│  │  - Download buttons for datasets, charts, summaries       │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                   │
-│                    HTTP REST API (localhost:8891)                │
+│                    In-process Python calls                       │
 │                              │                                   │
 └──────────────────────────────┼───────────────────────────────────┘
                                │
-┌──────────────────────────────┼───────────────────────────────────┐
-│                              ▼                                   │
+┌──────────────────────────────▼───────────────────────────────────┐
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              datanarrate_server.py (FastAPI)               │  │
-│  │  - REST API endpoints                                      │  │
-│  │  - Pandas data processing                                  │  │
-│  │  - Matplotlib visualization                                │  │
-│  │  - scikit-learn ML pipeline                                │  │
-│  │  - Groq LLM integration                                    │  │
+│  │      datanarrate_server.py (analytics engine + API)       │  │
+│  │  - Optional FastAPI REST endpoints                        │  │
+│  │  - Pandas data processing                                 │  │
+│  │  - Matplotlib visualization                               │  │
+│  │  - scikit-learn ML pipeline                               │  │
+│  │  - Groq LLM integration + rule-based fallbacks            │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                              │                                   │
 │              ┌───────────────┴───────────────┐                   │
@@ -39,7 +39,7 @@ DataNarrate is a full-stack data science application with a React frontend and P
 │     │  - outputs/ │                 │   LLM Calls     │          │
 │     └─────────────┘                 └─────────────────┘          │
 │                                                                  │
-│                    Python Backend Server                         │
+│                 Streamlit-first Python Application               │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,13 +49,14 @@ DataNarrate is a full-stack data science application with a React frontend and P
 
 ```
 DataNarrate/
-├── datanarrate_server.py      # Main backend server (FastAPI)
-├── DataNarrateWindow.tsx      # Frontend React component
-├── .env                       # Environment configuration
-├── .env.example               # Template for environment variables
-├── afcon_2025_2026_dataset.csv/.xlsx  # Sample dataset
+├── streamlit_app.py           # Streamlit-first application UI
+├── datanarrate_server.py      # Analytics engine + optional FastAPI API
+├── .streamlit/config.toml     # Streamlit theme/server defaults
+├── .env                       # Local environment configuration (ignored)
+├── .env.example               # Template for Groq/API environment variables
+├── afcon_2025_2026_dataset.csv  # Bundled sample dataset
 │
-├── data/                      # Uploaded datasets stored here
+├── data/                      # Uploaded datasets stored by optional API mode
 │   └── [uploaded_files]
 │
 └── outputs/                   # Generated outputs
@@ -435,100 +436,47 @@ async def call_llm(messages, json_mode=True):
 
 ---
 
-## Frontend Architecture
+## Streamlit App Architecture
 
 ### State Management
 
-```typescript
-// Core data state
-const [datasetInfo, setDatasetInfo] = useState(null);
-const [profile, setProfile] = useState(null);
-const [charts, setCharts] = useState([]);
-const [explanations, setExplanations] = useState([]);
-
-// Target inference state
-const [targetInference, setTargetInference] = useState(null);
-const [selectedTarget, setSelectedTarget] = useState(null);
-const [showTargetSelector, setShowTargetSelector] = useState(false);
-
-// Modeling state
-const [modelResults, setModelResults] = useState(null);
-const [modelExplanation, setModelExplanation] = useState(null);
-const [loadingModel, setLoadingModel] = useState(false);
-
-// Server state
-const [serverOnline, setServerOnline] = useState(false);
-const [serverRunning, setServerRunning] = useState(false);
-
-// UI state
-const [activeTab, setActiveTab] = useState("setup");
-const [analysisPhase, setAnalysisPhase] = useState("idle");
+```python
+# Core state is kept in st.session_state so Streamlit reruns preserve progress.
+st.session_state.df = uploaded_dataframe
+st.session_state.df_cleaned = cleaned_dataframe
+st.session_state.profile = profile
+st.session_state.viz_plan = viz_plan
+st.session_state.chart_stats = chart_stats
+st.session_state.model_results = model_results
+st.session_state.summary = summary
 ```
 
-### Server Communication
+### Analytics Engine Reuse
 
-```typescript
-// All API calls use standard Fetch API
-const runAnalysis = async () => {
-  // Step 1: Profile
-  const profileRes = await fetch(`${getServerUrl()}/profile`, { method: "POST" });
+```python
+# The Streamlit app imports datanarrate_server.py and calls the existing engine
+# functions directly instead of requiring a separate local HTTP process.
+import datanarrate_server as engine
 
-  // Step 2: Infer target
-  const targetRes = await fetch(`${getServerUrl()}/infer-target`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ intent, allow_sample_rows: allowSampleRows }),
-  });
-
-  // ... etc
-};
+profile = engine.profile_dataframe(df)
+cleaned_response = run_async(engine.apply_cleaning(engine.CleanRequest(apply_recommended=True)))
+charts_response = run_async(engine.generate_charts(engine.ChartsRequest(intent=intent)))
+model_response = run_async(engine.train_model(engine.ModelTrainRequest(target_column=target)))
 ```
 
-### Server Health Polling
+### User Workflow
 
-```typescript
-// Poll server status every 2 seconds
-useEffect(() => {
-  const checkStatus = async () => {
-    try {
-      const res = await fetch(`${getServerUrl()}/status`);
-      const data = await res.json();
-      setServerOnline(data.success);
-    } catch {
-      setServerOnline(false);
-    }
-  };
+1. Sidebar loads uploaded data or the bundled sample and captures the analysis intent.
+2. The **Quality** tab profiles types, missingness, uniqueness, and outlier indicators.
+3. The **Cleaning** tab applies safe or recommended cleaning and exposes CSV downloads.
+4. The **Visuals** tab creates an intent-aware seven-chart plan and chart ZIP downloads.
+5. The **Model** tab can infer target candidates from the user intent, then train a baseline classifier or regressor with metrics and artifacts.
+6. The **Summary** tab creates a stakeholder-friendly final answer.
 
-  checkStatus();
-  const interval = setInterval(checkStatus, 2000);
-  return () => clearInterval(interval);
-}, [serverPort]);
-```
+### Optional API Communication
 
-### IPC Communication (Electron)
-
-```typescript
-// Start Python server via Electron IPC
-const startServer = async () => {
-  const ipcRenderer = window.require('electron').ipcRenderer;
-
-  // Resolve script path
-  const scriptResult = await ipcRenderer.invoke('resolve-workflow-script', {
-    workflowFolder: 'DataNarrate',
-    scriptName: 'datanarrate_server.py'
-  });
-
-  // Start server process
-  const result = await ipcRenderer.invoke('python-start-script-server', {
-    venvName: selectedVenv,
-    scriptPath: scriptResult.path,
-    port: serverPort,
-    serverName: 'datanarrate',
-  });
-};
-```
-
----
+The FastAPI endpoints remain available for external clients. Start them separately with
+`python datanarrate_server.py` when an HTTP API is needed.
 
 ## Data Processing Architecture
 
@@ -658,25 +606,21 @@ def make_response(success: bool, data=None, error=None):
     return {"success": success, "data": data, "error": error}
 ```
 
-### Frontend Error Handling
+### Streamlit Error Handling
 
-```typescript
-const handleError = (message) => {
-  setError(message);
-  setTimeout(() => setError(null), 5000);  // Auto-dismiss after 5s
-};
+```python
+def response_data(response):
+    if not response.get("success"):
+        st.error(response.get("error", "Something went wrong."))
+        return None
+    return response.get("data")
 
-try {
-  const res = await fetch(...);
-  const data = await res.json();
-  if (data.success) {
-    // Handle success
-  } else {
-    handleError(data.error || "Operation failed");
-  }
-} catch (err) {
-  handleError("Failed to connect to server");
-}
+with st.spinner("Generating charts..."):
+    response = run_async(engine.generate_charts(engine.ChartsRequest(intent=intent)))
+
+data = response_data(response)
+if data:
+    st.success(f"Generated {len(data.get('charts', []))} charts")
 ```
 
 ### LLM Fallback Strategy
@@ -804,18 +748,16 @@ curl -X POST http://localhost:8891/infer-target \
 
 ### Requirements
 - Python 3.8+ with virtual environment
-- Node.js for ContextUI
+- Streamlit runtime
 - Groq API key for LLM features
 
 ### Startup Sequence
-1. User selects Python venv in Setup tab
-2. System checks/installs required packages
-3. User clicks "Start Server"
-4. Server starts via Electron IPC
-5. Frontend polls `/status` until online
-6. User can now upload data and run analysis
+1. Create and activate a Python virtual environment.
+2. Install dependencies with `pip install -r requirements.txt`.
+3. Optionally configure `.env` with Groq API keys for LLM-enhanced plans and summaries.
+4. Start the app with `streamlit run streamlit_app.py`.
+5. Upload a dataset or load the bundled sample, then run the analysis workflow in the Streamlit tabs.
 
 ### Shutdown
-- Click "Stop Server" in UI
-- Or server auto-stops when Electron app closes
-- `/shutdown` endpoint available for programmatic stop
+- Stop the Streamlit process with `Ctrl+C` in the terminal.
+- Optional FastAPI mode can still be stopped by terminating `python datanarrate_server.py`.
