@@ -397,6 +397,6 @@ Each chart explanation includes relevance rating (High/Medium/Low) based on user
 
 - **Application**: DataNarrate v1.0
 - **Backend**: FastAPI
-- **Frontend**: React (dynamic window in ContextUI)
+- **Frontend/App**: Streamlit (`streamlit_app.py`)
 - **ML Framework**: scikit-learn
 - **LLM Provider**: Groq API
