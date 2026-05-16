@@ -1184,8 +1184,10 @@ async def ingest_dataset(
                 # Clean up any embedded newlines in string columns
                 for col in df.select_dtypes(include=['object']).columns:
                     df[col] = df[col].apply(lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x)
-            elif ext in [".xlsx", ".xls"]:
+            elif ext == ".xlsx":
                 df = pd.read_excel(save_path, engine='openpyxl')
+            elif ext == ".xls":
+                df = pd.read_excel(save_path, engine='xlrd')
             elif ext == ".json":
                 df = pd.read_json(save_path)
             else:
@@ -2442,8 +2444,10 @@ async def train_model(request: ModelTrainRequest):
         if target_col not in df.columns:
             return make_response(False, error=f"Target column '{target_col}' not found in dataset")
 
-        # Store target in app_state
+        # Store target in app_state and clear stale model artifacts
         app_state["target_column"] = target_col
+        for artifact in MODELING_DIR.glob("*.png"):
+            artifact.unlink(missing_ok=True)
 
         # Get profile for column types
         profile = app_state.get("profile")
@@ -2798,7 +2802,7 @@ if __name__ == "__main__":
     import sys
     import uvicorn
 
-    # Port from command-line argument (passed by ContextUI) or fallback to env/default
+    # Port from command-line argument (for optional API integrations) or fallback to env/default
     port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVER_PORT
 
     print(f"Starting DataNarrate server at http://{SERVER_HOST}:{port}")
