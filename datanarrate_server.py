@@ -6,13 +6,10 @@ FastAPI server for data profiling, cleaning, visualization, and LLM-powered expl
 import os
 import re
 import json
-import shutil
 import zipfile
-import tempfile
 import traceback
 from pathlib import Path
 from typing import Optional, Dict, Any, List
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -20,7 +17,7 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -56,6 +53,25 @@ LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "1"))
 SERVER_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8891"))
+
+
+def parse_csv_env(name: str, default: List[str]) -> List[str]:
+    """Parse a comma-separated environment variable into a clean list."""
+    value = os.getenv(name, "")
+    if not value.strip():
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+CORS_ORIGINS = parse_csv_env(
+    "CORS_ORIGINS",
+    [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+        "http://localhost:8891",
+        "http://127.0.0.1:8891",
+    ],
+)
 
 # Paths
 BASE_DIR = Path(__file__).parent
@@ -96,8 +112,8 @@ app = FastAPI(title="DataNarrate Server", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials="*" not in CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -341,18 +357,32 @@ def compute_outlier_pct(series: pd.Series) -> float:
     return round(100 * outliers / len(series), 2) if len(series) > 0 else 0.0
 
 
+def is_text_like_series(series: pd.Series) -> bool:
+    """Return True for object, category, and pandas string dtypes."""
+    return (
+        pd.api.types.is_object_dtype(series)
+        or pd.api.types.is_string_dtype(series)
+        or isinstance(series.dtype, pd.CategoricalDtype)
+    )
+
+
+def text_like_columns(df: pd.DataFrame) -> List[str]:
+    """Return text-like columns across pandas 2 object and pandas 3 string dtypes."""
+    return [col for col in df.columns if is_text_like_series(df[col])]
+
+
 def detect_datetime_column(series: pd.Series) -> bool:
     """Check if a column looks like a datetime."""
-    if series.dtype == 'datetime64[ns]':
+    if pd.api.types.is_datetime64_any_dtype(series):
         return True
-    if series.dtype == 'object':
+    if is_text_like_series(series):
         sample = series.dropna().head(20)
         if len(sample) == 0:
             return False
         try:
-            pd.to_datetime(sample)
+            pd.to_datetime(sample, errors="raise", format="mixed")
             return True
-        except:
+        except Exception:
             return False
     return False
 
@@ -455,7 +485,7 @@ def profile_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
             "n_cols": len(df.columns) if df is not None else 0,
             "duplicates_count": 0,
             "numeric_cols": list(df.select_dtypes(include=[np.number]).columns) if df is not None else [],
-            "categorical_cols": list(df.select_dtypes(include=['object', 'category']).columns) if df is not None else [],
+            "categorical_cols": text_like_columns(df) if df is not None else [],
             "datetime_cols": [],
             "column_profiles": [],
             "summary_text": f"Dataset with {len(df) if df is not None else 0} rows and {len(df.columns) if df is not None else 0} columns (profiling encountered an error)"
@@ -495,7 +525,7 @@ def apply_safe_cleaning(df: pd.DataFrame) -> tuple[pd.DataFrame, List[Dict]]:
         })
 
     # 2. Trim string columns
-    str_cols = df.select_dtypes(include=['object']).columns
+    str_cols = text_like_columns(df)
     trimmed_count = 0
     for col in str_cols:
         before = df[col].copy()
@@ -524,7 +554,7 @@ def apply_safe_cleaning(df: pd.DataFrame) -> tuple[pd.DataFrame, List[Dict]]:
     # 4. Type coercion attempts
     coerced = []
     for col in df.columns:
-        if df[col].dtype == 'object':
+        if is_text_like_series(df[col]):
             # Try numeric
             try:
                 numeric = pd.to_numeric(df[col], errors='coerce')
@@ -534,7 +564,7 @@ def apply_safe_cleaning(df: pd.DataFrame) -> tuple[pd.DataFrame, List[Dict]]:
                     df[col] = numeric
                     coerced.append(f"{col} -> numeric")
                     continue
-            except:
+            except Exception:
                 pass
 
             # Try datetime
@@ -545,7 +575,7 @@ def apply_safe_cleaning(df: pd.DataFrame) -> tuple[pd.DataFrame, List[Dict]]:
                 if non_null_new >= non_null_orig * 0.8 and non_null_new > 0:
                     df[col] = dt
                     coerced.append(f"{col} -> datetime")
-            except:
+            except Exception:
                 pass
 
     if coerced:
@@ -638,7 +668,7 @@ def apply_recommended_cleaning(df: pd.DataFrame, profile: Dict) -> tuple[pd.Data
 
     # 4. Group rare categories (<1%) -> "Other"
     grouped = []
-    for col in df.select_dtypes(include=['object', 'category']).columns:
+    for col in text_like_columns(df):
         vc = df[col].value_counts(normalize=True)
         rare = vc[vc < 0.01].index.tolist()
         if len(rare) > 0:
@@ -1160,7 +1190,7 @@ async def ingest_dataset(
                 # Use python engine for better handling of quoted fields with embedded newlines
                 df = pd.read_csv(SAMPLE_DATASET_CSV, engine='python', on_bad_lines='warn')
                 # Clean up any embedded newlines in string columns
-                for col in df.select_dtypes(include=['object']).columns:
+                for col in text_like_columns(df):
                     df[col] = df[col].apply(lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x)
                 dataset_name = "AFCON 2025-2026 (Sample)"
                 app_state["dataset_path"] = str(SAMPLE_DATASET_CSV)
@@ -1182,7 +1212,7 @@ async def ingest_dataset(
                 # Use python engine for better handling of quoted fields with embedded newlines
                 df = pd.read_csv(save_path, engine='python', on_bad_lines='warn')
                 # Clean up any embedded newlines in string columns
-                for col in df.select_dtypes(include=['object']).columns:
+                for col in text_like_columns(df):
                     df[col] = df[col].apply(lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x)
             elif ext == ".xlsx":
                 df = pd.read_excel(save_path, engine='openpyxl')
@@ -1381,14 +1411,14 @@ CRITICAL RULES FOR target_candidates:
                     sample_vals = df[col['name']].dropna().unique()[:5].tolist()
                     if sample_vals:
                         col_info += f" -> examples: {sample_vals}"
-                except:
+                except Exception:
                     pass
             elif col['type'] == 'numeric':
                 try:
                     col_data = df[col['name']].dropna()
                     if len(col_data) > 0:
                         col_info += f" -> range: {col_data.min():.1f} to {col_data.max():.1f}"
-                except:
+                except Exception:
                     pass
 
             column_list.append(col_info)
@@ -2554,12 +2584,12 @@ async def train_model(request: ModelTrainRequest):
                 "accuracy": float(accuracy_score(y_test, y_pred)),
                 "macro_f1": float(f1_score(y_test, y_pred, average='macro', zero_division=0)),
                 "confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
-                "labels": [str(l) for l in labels]
+                "labels": [str(label) for label in labels]
             }
 
             # Generate confusion matrix plot
             artifact_path = MODELING_DIR / "confusion_matrix.png"
-            generate_confusion_matrix_plot(y_test, y_pred, [str(l) for l in labels], artifact_path)
+            generate_confusion_matrix_plot(y_test, y_pred, [str(label) for label in labels], artifact_path)
         else:
             from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 

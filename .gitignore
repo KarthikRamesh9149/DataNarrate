@@ -18,6 +18,13 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
 
 # Node (if applicable)
 node_modules/

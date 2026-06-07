@@ -52,7 +52,7 @@ Watch a full walkthrough of DataNarrate, including intent-based analysis, auto v
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/DataNarrate.git
+git clone https://github.com/KarthikRamesh9149/DataNarrate.git
 cd DataNarrate
 ```
 
@@ -67,6 +67,12 @@ source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 
 ```bash
 pip install -r requirements.txt
+```
+
+For local development and CI parity, install the development tools too:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ### 4. Configure optional LLM access
@@ -110,6 +116,24 @@ python datanarrate_server.py
 ```
 
 The API runs on `http://localhost:8891` by default.
+
+By default, the API only allows local Streamlit/API origins through CORS. For a deployed frontend, set a comma-separated `CORS_ORIGINS` value in `.env`:
+
+```env
+CORS_ORIGINS=https://your-app.example.com
+```
+
+## Development Checks
+
+Run these before opening a pull request:
+
+```bash
+python -m ruff check .
+python -m py_compile streamlit_app.py datanarrate_server.py
+python -m pytest
+```
+
+GitHub Actions runs the same checks on Python 3.10 and 3.12.
 
 ## Sample Dataset
 
