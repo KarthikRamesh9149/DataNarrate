@@ -1,0 +1,19 @@
+[project]
+name = "datanarrate"
+version = "1.0.0"
+description = "Intent-aware data science copilot for profiling, cleaning, visualization, and baseline ML."
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

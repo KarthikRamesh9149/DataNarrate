@@ -86,7 +86,9 @@ def run_async(coro):
 def sanitize_object_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Trim object columns and remove embedded newlines for cleaner previews/charts."""
     df = df.copy()
-    for col in df.select_dtypes(include=["object"]).columns:
+    for col in df.columns:
+        if not (pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_string_dtype(df[col])):
+            continue
         df[col] = df[col].apply(lambda x: x.replace("\n", " ").strip() if isinstance(x, str) else x)
     return df
 

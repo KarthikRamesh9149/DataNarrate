@@ -78,7 +78,7 @@ DataNarrate/
 ```python
 # Core app initialization
 app = FastAPI(title="DataNarrate Server", version="1.0.0")
-app.add_middleware(CORSMiddleware, ...)  # Enable cross-origin requests
+app.add_middleware(CORSMiddleware, ...)  # Allow configured local/deployed origins
 
 # Application State (in-memory)
 app_state = {
@@ -668,6 +668,7 @@ FALLBACK_MODEL_2=mixtral-8x7b-32768
 # Server Configuration
 SERVER_HOST=127.0.0.1
 SERVER_PORT=8891
+CORS_ORIGINS=http://localhost:8501,http://127.0.0.1:8501
 LLM_TIMEOUT_SECONDS=30
 MAX_RETRIES=1
 ```
