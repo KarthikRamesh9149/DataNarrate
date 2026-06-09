@@ -1,8 +1,10 @@
 # DataNarrate
 
+![DataNarrate demo preview](docs/assets/datanarrate-demo-preview.svg)
+
 [![CI](https://github.com/KarthikRamesh9149/DataNarrate/actions/workflows/ci.yml/badge.svg)](https://github.com/KarthikRamesh9149/DataNarrate/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20to%203.14-blue)](pyproject.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](#license)
+[![License: All Rights Reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey.svg)](#license)
 
 DataNarrate is an intent-aware data science copilot that turns an uploaded
 dataset and a plain-English question into a complete exploratory analysis
@@ -185,9 +187,11 @@ Activate it:
 
 ```bash
 # macOS/Linux
+
 source .venv/bin/activate
 
 # Windows PowerShell
+
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -221,9 +225,11 @@ To enable Groq-backed LLM features:
 
 ```bash
 # macOS/Linux
+
 cp .env.example .env
 
 # Windows PowerShell
+
 Copy-Item .env.example .env
 ```
 
@@ -381,4 +387,4 @@ Practical next steps:
 
 ## License
 
-MIT. See the repository license metadata in `pyproject.toml`.
+All rights reserved. This repository is public for portfolio and recruitment review. Reuse, redistribution, or commercial use requires explicit written permission from Karthik Ramesh.

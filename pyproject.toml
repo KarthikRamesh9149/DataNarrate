@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Intent-aware data science copilot for profiling, cleaning, visualization, and baseline ML."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
-license = { text = "MIT" }
+license = { text = "All Rights Reserved" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
