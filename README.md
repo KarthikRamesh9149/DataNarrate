@@ -1,7 +1,5 @@
 # DataNarrate
 
-![DataNarrate demo preview](docs/assets/datanarrate-demo-preview.svg)
-
 [![CI](https://github.com/KarthikRamesh9149/DataNarrate/actions/workflows/ci.yml/badge.svg)](https://github.com/KarthikRamesh9149/DataNarrate/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20to%203.14-blue)](pyproject.toml)
 [![License: All Rights Reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey.svg)](#license)
