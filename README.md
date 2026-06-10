@@ -17,6 +17,12 @@ Python engine exposes the same capabilities through optional FastAPI endpoints.
 It can use Groq-hosted LLMs for chart planning and explanations, but every major
 workflow has rule-based fallbacks so the app still works without an API key.
 
+## Product Screenshot
+
+Real local Streamlit run with the bundled AFCON sample loaded. The screenshot shows dataset profiling and preview output running without an API key.
+
+![DataNarrate sample dataset profiling and data quality workspace](docs/assets/screenshots/datanarrate-sample-analysis.png)
+
 ## Why This Matters
 
 Most one-off data questions stall before the interesting work begins: messy
